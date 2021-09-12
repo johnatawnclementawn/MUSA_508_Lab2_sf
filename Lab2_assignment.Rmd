@@ -1,7 +1,7 @@
 ---
 title: "Lab2_assignment"
-author: "Matt Harris"
-date: "9/8/2021"
+author: "Matt Harris & Johnathan Clementi"
+date: "MUSA 508, 9/13/2021"
 output: github_document
 editor_options: 
   markdown: 
@@ -64,9 +64,19 @@ Steps in this assignment:
 ## Load data from {tidycensus}
 
 ```{r acs_vars, cache = TRUE, message = FALSE, warning = FALSE, results=FALSE}
-acs_vars <- c( "[PUT YOUR VAR CODES HERE]")
+acs_vars <- c("B01001_001E", # ACS total Pop estimate
+              "B25002_001E", # Estimate of total housing units
+              "B25002_003E", # Number of vacant housing units
+              "B19013_001E", # Median HH Income ($)
+              "B02001_002E", # People describing themselves as "white alone"
+              "B06009_006E", # Total graduate or professional degree)
+              "B06009_002E", # Total less than high school graduate
+              "B06009_004E", # Total some college or associates degree
+              "B06009_005E") # Total bachelors degree
 
-myTracts <- c("[YOUR TRACTS GEOIDs HERE]")
+myTracts <- c("42101020800", 
+              "42101020600", 
+              "42101020700")
 
 acsTractsPHL.2019.sf <- get_acs(geography = "tract",
                              year = 2019,
@@ -75,35 +85,84 @@ acsTractsPHL.2019.sf <- get_acs(geography = "tract",
                              state  = "PA",
                              county = "Philadelphia",
                              output = "wide") %>%
-  dplyr::select (GEOID, NAME, all_of(paste0(acs_vars,"E"))) %>%
-  rename ("[RENAME YOUR VARIABLES HERE]") %>%
+  dplyr::select (GEOID, NAME, all_of(acs_vars)) %>%
+  rename (total_pop.2019 = B01001_001E,
+          total_HU.2019 = B25002_001E,
+          total_vacant.2019 = B25002_003E,
+          med_HH_Income.2019 = B19013_001E,
+          total_White.2019 = B02001_002E,
+          total_GradDeg.2019 = B06009_006E,
+          total_LessHSGrad.2019 = B06009_002E,
+          total_SomeCollege.2019 = B06009_004E,
+          total_BachelorsDeg.2019 = B06009_005E) %>%
   mutate(Neighborhood = ifelse(GEOID %in% myTracts,
-                               "[YOUR NEIGHBORHOOD NAME HERE]",
-                               "REST OF PHILADELPHIA"))
+                               "EAST FALLS",
+                               "REST OF PHILADELPHIA")) %>%
+  mutate(pctLessHS = total_LessHSGrad.2019/total_pop.2019,
+         pctSomeCollege = total_SomeCollege.2019/total_pop.2019,
+         pctBachelors = total_BachelorsDeg.2019/total_pop.2019)
+
 ```
 
 ## Transform to WGS84 with {sf}
 
 ```{r}
 acsTractsPHL.2019.sf <- acsTractsPHL.2019.sf %>% 
-  st_transform(crs = "[PUT THE WGS84 EPSG CODE HERE]")
+  st_transform(crs = "EPSG:4326")
 ```
 
 ## Plot with {ggplot2}
 
-```{r ggplot_geom_sf, warning = FALSE, echo = FALSE}
+```{r ggplot_geom_sf1, warning = FALSE, echo = FALSE}
 ggplot()+
-  geom_sf(data = acsTractsPHL.2019.sf, aes(fill = "[YOUR VARIABLE NAME HERE]"),
+  geom_sf(data = acsTractsPHL.2019.sf, aes(fill = pctLessHS),
           color = "transparent")+
+          scale_fill_viridis_c(option = "cividis")+
   geom_sf(data = acsTractsPHL.2019.sf %>%
-            filter(Neighborhood == "[YOUR NEIGHBORHOOD NAME HERE]") %>%
+            filter(Neighborhood == "EAST FALLS") %>%
             st_union(),
           color = "white",
           fill = "transparent")+
   # Bonus to figure out different color ramps with scale_fill_viridis()
   labs(
-    title = "[YOUR TITLE HERE]",
-    subtitle = "[YOUR SUBTITLE HERE]",
-    caption = "[YOUR CAPTION HERE]")
+    title = "Educational Attainment: Less than a High School Degree",
+    subtitle = "",
+    caption = "Data: US Census Bureau, ACS 5-year estimates")
+
+```
+
+```{r ggplot_geom_sf2, warning = FALSE, echo = FALSE}
+ggplot()+
+  geom_sf(data = acsTractsPHL.2019.sf, aes(fill = pctSomeCollege),
+          color = "transparent")+
+          scale_fill_viridis_c(option = "cividis")+
+  geom_sf(data = acsTractsPHL.2019.sf %>%
+            filter(Neighborhood == "EAST FALLS") %>%
+            st_union(),
+          color = "white",
+          fill = "transparent")+
+  # Bonus to figure out different color ramps with scale_fill_viridis()
+  labs(
+    title = "Educational Attainment: Some College Coursework",
+    subtitle = "",
+    caption = "Data: US Census Bureau, ACS 5-year estimates")
+
+```
+
+```{r ggplot_geom_sf3, warning = FALSE, echo = FALSE}
+ggplot()+
+  geom_sf(data = acsTractsPHL.2019.sf, aes(fill = pctBachelors),
+          color = "transparent")+
+          scale_fill_viridis_c(option = "cividis")+
+  geom_sf(data = acsTractsPHL.2019.sf %>%
+            filter(Neighborhood == "EAST FALLS") %>%
+            st_union(),
+          color = "white",
+          fill = "transparent")+
+  # Bonus to figure out different color ramps with scale_fill_viridis()
+  labs(
+    title = "Educational Attainment: Bachelors Degree",
+    subtitle = "",
+    caption = "Data: US Census Bureau, ACS 5-year estimates")
 
 ```
